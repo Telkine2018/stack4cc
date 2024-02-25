@@ -33,11 +33,13 @@ script.on_event(defines.events.script_raised_revive, on_build, filter)
 local combinators
 
 local operation_map = {
-    ["*"] = 1,
-    ["/"] = 2,
-    ["AND"] = 3,
-    ["OR"] = 4,
-    ["XOR"] = 5,
+    ["*"] = 1,      -- multiply by stack size
+    ["/"] = 2,      -- divide by stack size, round to upper bound
+    ["AND"] = 3,    -- round to nearest stack
+    ["OR"] = 4,     -- round to nearest upper stack
+    ["XOR"] = 5,    -- round to nearest lower stack
+    ["+"] = 6,      -- divide by stack size, round to lower bound
+    
 }
 
 local use_combinators = settings.startup[commons.prefix .. "-use_combinators"].value
@@ -140,7 +142,7 @@ local function get_func(config, multiplier)
     if (op == 1) then
         return function(value, stack) return value * stack * multiplier end
     elseif (op == 2) then
-        return function(value, stack) return value / stack * multiplier end
+        return function(value, stack) return math.ceil(value / stack * multiplier) end
     elseif (op == 3) then
         return function(value, stack)
             local op = math.abs(value) >= stack / 2 and 4 or 5
@@ -166,6 +168,8 @@ local function get_func(config, multiplier)
                 return math.ceil(value / stack) * stack * multiplier
             end
         end
+    elseif op == 6 then
+        return function(value, stack) return math.floor(value / stack * multiplier) end
     end
 end
 

@@ -134,16 +134,19 @@ function builder.create_stack_chain(config, stack)
     end
 
     local c3
-    if config.operation == 1 then
+    if config.operation == 1 then       -- multiply by stack size   
+
         c3 = builder.create_ac(config, signal_each, "*", stack, signal_each)
-        process_chain.output = c3
-    elseif config.operation == 2 then
+        process_chain.output = c3       
+
+    elseif config.operation == 2 then       -- divide by stack size, round to upper absolute integer     
+
         c3 = builder.create_ac(config, signal_each, "/", stack, signal_each)
         process_chain.output = c3
 
     elseif config.operation == 3 then
 
-        local test1 = builder.create_dc(config, signal_each, ">=", stack / 2, signal_each, true)
+        local test1 = builder.create_dc(config, signal_each, ">", stack / 2, signal_each, true)
 
         local cc1 = builder.create_cc(config)
         test1.connect_neighbour { target_entity = cc1, source_circuit_id = combinator_output, wire = red }
@@ -151,9 +154,8 @@ function builder.create_stack_chain(config, stack)
         local div1 = builder.create_ac(config, signal_each, "/", stack, signal_each)
         cc1.connect_neighbour { target_entity = div1, target_circuit_id = combinator_input, wire = red }
 
-        local test2 = builder.create_dc(config, signal_each, "<=", -stack / 2, signal_each, true)
-        test1.connect_neighbour { source_circuit_id = combinator_input, target_entity = test2,
-            target_circuit_id = combinator_input, wire = red }
+        local test2 = builder.create_dc(config, signal_each, "<", -stack / 2, signal_each, true) 
+        test1.connect_neighbour { source_circuit_id = combinator_input, target_entity = test2, target_circuit_id = combinator_input, wire = red }
 
         local cc2 = builder.create_cc(config)
         test2.connect_neighbour { target_entity = cc2, source_circuit_id = combinator_output, wire = red }
@@ -162,10 +164,8 @@ function builder.create_stack_chain(config, stack)
         cc2.connect_neighbour { target_entity = div2, target_circuit_id = combinator_input, wire = red }
 
         local mul1 = builder.create_ac(config, signal_each, "*", stack, signal_each)
-        div1.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1,
-            target_circuit_id = combinator_input, wire = red }
-        div2.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1,
-            target_circuit_id = combinator_input, wire = red }
+        div1.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1, target_circuit_id = combinator_input, wire = red }
+        div2.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1, target_circuit_id = combinator_input, wire = red }
 
         process_chain.op_filter1 = cc1
         process_chain.op_filter2 = cc2
@@ -176,10 +176,8 @@ function builder.create_stack_chain(config, stack)
     elseif config.operation == 5 then
 
         local div1 = builder.create_ac(config, signal_each, "/", stack, signal_each)
-
         local mul1 = builder.create_ac(config, signal_each, "*", stack, signal_each)
-        div1.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1,
-            target_circuit_id = combinator_input, wire = red }
+        div1.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1, target_circuit_id = combinator_input, wire = red }
 
         c3 = div1
         process_chain.output = mul1
@@ -204,16 +202,38 @@ function builder.create_stack_chain(config, stack)
         cc2.connect_neighbour { target_entity = div2, target_circuit_id = combinator_input, wire = red }
 
         local mul1 = builder.create_ac(config, signal_each, "*", stack, signal_each)
-        div1.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1,
-            target_circuit_id = combinator_input, wire = red }
-        div2.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1,
-            target_circuit_id = combinator_input, wire = red }
+        div1.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1, target_circuit_id = combinator_input, wire = red }
+        div2.connect_neighbour { source_circuit_id = combinator_output, target_entity = mul1, target_circuit_id = combinator_input, wire = red }
 
         process_chain.op_filter1 = cc1
         process_chain.op_filter2 = cc2
         process_chain.op_filter_base = stack - 1
         process_chain.output = mul1
         c3 = test1
+    elseif config.operation == 6 then
+
+        local test1 = builder.create_dc(config, signal_each, ">", 0, signal_each, true)
+        local add1 = builder.create_ac(config, signal_each, "+", stack - 1, signal_each)        
+        test1.connect_neighbour { source_circuit_id = combinator_output, target_entity = add1, target_circuit_id = combinator_input, wire = red }
+        local c1 = builder.create_ac(config, signal_each, "/", stack, signal_each)        
+        add1.connect_neighbour { source_circuit_id = combinator_output, target_entity = c1, target_circuit_id = combinator_input, wire = red }
+
+        local test2 = builder.create_dc(config, signal_each, "<", 0, signal_each, true)
+        test1.connect_neighbour { source_circuit_id = combinator_input, target_entity = test2, target_circuit_id = combinator_input, wire = red }
+        local add2 = builder.create_ac(config, signal_each, "+", -stack + 1, signal_each)        
+        test2.connect_neighbour { source_circuit_id = combinator_output, target_entity = add2, target_circuit_id = combinator_input, wire = red }
+        local c2 = builder.create_ac(config, signal_each, "/", stack, signal_each)        
+        add2.connect_neighbour { source_circuit_id = combinator_output, target_entity = c2, target_circuit_id = combinator_input, wire = red }
+
+        c1.connect_neighbour { source_circuit_id = combinator_output, target_entity = c2, target_circuit_id = combinator_output, wire = red }
+        c1.connect_neighbour { source_circuit_id = combinator_output, target_entity = c2, target_circuit_id = combinator_output, wire = green}
+
+        c3 = test1
+        process_chain.output = c1       
+
+    else
+        log("stack4cc: operation not supported :" .. tostring(config.operation))
+        return nil    
     end
 
     filter2.connect_neighbour {
@@ -342,10 +362,14 @@ function builder.compute(config)
             local chain = config.stack_map[stack]
             if not chain then
                 chain = builder.create_stack_chain(config, stack)
-                builder.connect_input_output(config, chain)
-                config.stack_map[stack] = chain
+                if chain then
+                    builder.connect_input_output(config, chain)
+                    config.stack_map[stack] = chain
+                end
             end
-            builder.add_item(chain, ssignal)
+            if chain then
+                builder.add_item(chain, ssignal)
+            end
         else
             local chain = config.signal_chain
             if not chain then
